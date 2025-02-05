@@ -230,85 +230,90 @@ def test_close_pull_request() -> None:
 
     assert resp == mock_pull_request
 
+
 def test_copy_branch_creates_new_branch() -> None:
-    github_client = MagicMock()
-    src_repo = MagicMock()
+    mock_client = MagicMock()
+    mock_src_repo = MagicMock()
     dest_repo = MagicMock()
 
-    github_client.get_repo.side_effect = [src_repo, dest_repo]
+    mock_client.get_repo.side_effect = [mock_src_repo, dest_repo]
 
     src_branch = MagicMock()
     src_branch.commit.sha = "123abc"
-    src_repo.get_branch.return_value = src_branch
+    mock_src_repo.get_branch.return_value = src_branch
 
     dest_repo.get_branches.return_value = []
 
     github.copy_branch(
-        github_client, 
-        "org/source-repo", 
-        "feature-branch", 
-        "org/destination-repo", 
-        "new-feature-branch"
+        mock_client,
+        "org/source-repo",
+        "feature-branch",
+        "org/destination-repo",
+        "new-feature-branch",
     )
 
-    dest_repo.create_git_ref.assert_called_once_with(ref="refs/heads/new-feature-branch", sha="123abc")
+    dest_repo.create_git_ref.assert_called_once_with(
+        ref="refs/heads/new-feature-branch", sha="123abc"
+    )
+
 
 def test_copy_branch_updates_existing_branch() -> None:
-    github_client = MagicMock()
-    src_repo = MagicMock()
+    mock_client = MagicMock()
+    mock_src_repo = MagicMock()
     dest_repo = MagicMock()
 
-    github_client.get_repo.side_effect = [src_repo, dest_repo]
+    mock_client.get_repo.side_effect = [mock_src_repo, dest_repo]
 
     src_branch = MagicMock()
     src_branch.commit.sha = "123abc"
-    src_repo.get_branch.return_value = src_branch
-
+    mock_src_repo.get_branch.return_value = src_branch
 
     demo_branch = MagicMock()
     demo_branch.name = "demo"
     dest_branch = MagicMock()
     dest_branch.name = "dest_existing_branch"
-    dest_repo.get_branches.return_value = [dest_branch,demo_branch]
+    dest_repo.get_branches.return_value = [dest_branch, demo_branch]
 
     dest_branch_ref = MagicMock()
     dest_repo.get_git_ref.return_value = dest_branch_ref
 
     github.copy_branch(
-        github_client, 
-        "org/source-repo", 
-        "feature-branch", 
+        mock_client, 
+        "org/source-repo",
+        "feature-branch",
         "org/destination-repo", 
-        "dest_existing_branch"
+        "dest_existing_branch",
     )
 
     dest_repo.get_git_ref.assert_called_once_with("heads/dest_existing_branch")
     dest_branch_ref.edit.assert_called_once_with(sha="123abc", force=True)
 
+
 def test_delete_branch_success() -> None:
-    github_client = MagicMock()
-    repo = MagicMock()
-    github_client.get_repo.return_value = repo
+    mock_client = MagicMock()
+    mock_repo = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
 
     target_branch = MagicMock()
     target_branch.name = "old-feature-branch"
-    repo.get_branches.return_value = [target_branch]
+    mock_repo.get_branches.return_value = [target_branch]
 
     branch_ref = MagicMock()
-    repo.get_git_ref.return_value = branch_ref
+    mock_repo.get_git_ref.return_value = branch_ref
 
-    github.delete_branch(github_client, "org/repo-name", "old-feature-branch")
+    github.delete_branch(mock_client, "org/repo-name", "old-feature-branch")
 
-    repo.get_git_ref.assert_called_once_with("heads/old-feature-branch")
+    mock_repo.get_git_ref.assert_called_once_with("heads/old-feature-branch")
     branch_ref.delete.assert_called_once()
 
+
 def test_delete_branch_when_branch_does_not_exist() -> None:
-    github_client = MagicMock()
-    repo = MagicMock()
-    github_client.get_repo.return_value = repo
+    mock_client = MagicMock()
+    mock_repo = MagicMock()
+    mock_client.get_repo.return_value = mock_repo
 
-    repo.get_branches.return_value = []
+    mock_repo.get_branches.return_value = []
 
-    github.delete_branch(github_client, "org/repo-name", "non-existent-branch")
+    github.delete_branch(mock_client, "org/repo-name", "non-existent-branch")
 
-    repo.get_git_ref.assert_not_called()
+    mock_repo.get_git_ref.assert_not_called()

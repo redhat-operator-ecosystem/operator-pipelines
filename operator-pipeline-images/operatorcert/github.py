@@ -337,6 +337,7 @@ def close_pull_request(
     pull_request.edit(state="closed")
     return pull_request
 
+
 def copy_branch(
     github_client: Github,
     src_repo_name: str,
@@ -361,33 +362,34 @@ def copy_branch(
     latest_commit_sha = src_branch_ref.commit.sha
 
     dest_branch_exists = any(
-                            branch.name == dest_branch_name
-                            for branch in dest_repository.get_branches()
-                        )
+        branch.name == dest_branch_name for branch in dest_repository.get_branches()
+    )
 
     if dest_branch_exists:
         dest_branch_ref = dest_repository.get_git_ref(f"heads/{dest_branch_name}")
         dest_branch_ref.edit(sha=latest_commit_sha, force=True)
-        LOGGER.debug("Branch '%s' in '%s' updated to match '%s' from '%s' successfully.",
-                        dest_branch_name,
-                        dest_repo_name,
-                        src_branch_name,
-                        src_repo_name,
+        LOGGER.debug(
+            "Branch '%s' in '%s' updated to match '%s' from '%s' successfully.",
+            dest_branch_name,
+            dest_repo_name,
+            src_branch_name,
+            src_repo_name,
         )
     else:
         ref = f"refs/heads/{dest_branch_name}"
         dest_repository.create_git_ref(ref=ref, sha=latest_commit_sha)
-        LOGGER.debug("Branch '%s' from '%s' copied to '%s' in '%s' successfully.",
-                        src_branch_name,
-                        src_repo_name,
-                        dest_branch_name,
-                        dest_repo_name,
+        LOGGER.debug(
+            "Branch '%s' from '%s' copied to '%s' in '%s' successfully.",
+            src_branch_name,
+            src_repo_name,
+            dest_branch_name,
+            dest_repo_name,
         )
 
 def delete_branch(
-        github_client: Github,
-        repository_name: str,
-        branch_name: str,
+    github_client: Github,
+    repository_name: str,
+    branch_name: str,
 ) -> None:
     """
     Delete a branch from a Github repository.
@@ -401,13 +403,13 @@ def delete_branch(
     branch_ref = f"heads/{branch_name}"
 
     branch_exists = any(
-                        branch.name == branch_name
-                        for branch in repository.get_branches()
-                    )
+        branch.name == branch_name for branch in repository.get_branches()
+    )
     if branch_exists:
         repository.get_git_ref(branch_ref).delete()
 
-        LOGGER.debug("Branch '%s' deleted from '%s' successfully.",
-                        branch_name,
+        LOGGER.debug(
+            "Branch '%s' deleted from '%s' successfully.",
+                    branch_name,
                         repository_name,
         )

@@ -20,6 +20,8 @@ operator_pipeline_hydra_sso_client_secret_local_path: ../../vaults/prod/hydra-ss
 operator_pipeline_kubeconfig_prow_local_path: ../../vaults/prod/kubeconfig-prow
 operator_pipeline_github_bot_token: ../../vaults/prod/github-bot-token.txt
 
+operator_pipeline_bot_ssh_key_path: ../../vaults/prod/github-bot-ssh
+
 operator_pipeline_preflight_decryption_key_private_local_path: ../../vaults/prod/preflight-decryption-key-priv.gpg
 operator_pipeline_preflight_decryption_key_public_local_path: ../../vaults/prod/preflight-decryption-key-pub
 

@@ -386,6 +386,7 @@ def copy_branch(
             dest_repo_name,
         )
 
+
 def delete_branch(
     github_client: Github,
     repository_name: str,
@@ -410,6 +411,6 @@ def delete_branch(
 
         LOGGER.debug(
             "Branch '%s' deleted from '%s' successfully.",
-                    branch_name,
-                        repository_name,
+            branch_name,
+            repository_name,
         )

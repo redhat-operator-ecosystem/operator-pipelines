@@ -278,10 +278,10 @@ def test_copy_branch_updates_existing_branch() -> None:
     dest_repo.get_git_ref.return_value = dest_branch_ref
 
     github.copy_branch(
-        mock_client, 
+        mock_client,
         "org/source-repo",
         "feature-branch",
-        "org/destination-repo", 
+        "org/destination-repo",
         "dest_existing_branch",
     )
 

@@ -13,6 +13,9 @@ spec:
 
     - name: git_repo_url
 
+    - name: git_base_branch
+      description: The target branch in the upstream repository where the PR will be merged.
+
     - name: git_username
 
     - name: git_commit
@@ -203,7 +206,7 @@ spec:
       taskRef:
         name: set-github-status
       runAfter:
-        - set-github-started-label
+        - acquire-lease
       params:
         - name: pipeline_image
           value: "$(params.pipeline_image)"
@@ -226,6 +229,7 @@ spec:
     - name: set-env
       runAfter:
         - set-github-status-pending
+        - set-github-started-label
       taskRef:
         name: set-env
         kind: Task
@@ -1223,10 +1227,42 @@ spec:
         - name: ignore_publishing_checklist
           value: "$(params.ignore_publishing_checklist)"
 
+    - name: add-bundle-to-fbc-dryrun
+      runAfter:
+        - query-publishing-checklist
+      taskRef:
+        kind: Task
+        name: add-bundle-to-fbc
+      when:
+        - input: "$(tasks.detect-changes.results.added_bundle)"
+          operator: notin
+          values: [""]
+      params:
+        - name: pipeline_image
+          value: "$(params.pipeline_image)"
+        - name: bundle_pullspec
+          value: *bundleImage
+        - name: operator_name
+          value: "$(tasks.detect-changes.results.added_operator)"
+        - name: operator_version
+          value: "$(tasks.detect-changes.results.added_bundle)"
+        - name: git_base_branch
+          value: "$(params.git_base_branch)"
+        - name: github_origin_pr_url
+          value: "$(params.git_pr_url)"
+        - name: github_token_secret_name
+          value: "$(params.github_token_secret_name)"
+        - name: github_token_secret_key
+          value: "$(params.github_token_secret_key)"
+      workspaces:
+        - name: source
+          workspace: repository
+          subPath: src
+
     # merge PR
     - name: merge-pr
       runAfter:
-        - query-publishing-checklist
+        - add-bundle-to-fbc-dryrun
       taskRef:
         name: merge-pr
       params:

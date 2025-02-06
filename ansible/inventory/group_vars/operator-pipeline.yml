@@ -37,6 +37,9 @@ operator_pipeline_preflight_decryption_key_public_local_path: ../../vaults/commo
 operator_pipeline_gpg_key_path: ../../vaults/{{ env }}/operator-pipeline-gpg.key
 operator_pipeline_gpg_passphrase_path: ../../vaults/{{ env }}/operator-pipeline-gpg.passphrase
 
+# SSH key for the operator pipeline bot to access git repositories
+operator_pipeline_bot_ssh_key_path: ../../vaults/common/github-bot-ssh
+
 operator_pipeline_url: "https://operator-pipeline-{{ oc_namespace }}.apps.pipelines-stage.0ce8.p1.openshiftapps.com"
 operator_pipeline_webhook_secret: ../../vaults/common/github-webhook-secret-preprod.txt
 

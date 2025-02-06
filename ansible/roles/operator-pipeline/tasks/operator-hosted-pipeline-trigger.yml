@@ -23,9 +23,11 @@
               - name: git_pr_url
                 value: $(body.pull_request.html_url)
               - name: git_fork_url
-                value: $(body.pull_request.head.repo.clone_url)
+                value: $(body.pull_request.head.repo.ssh_url)
               - name: git_repo_url
-                value: $(body.pull_request.base.repo.clone_url)
+                value: $(body.pull_request.base.repo.ssh_url)
+              - name: git_base_branch
+                value: $(body.pull_request.base.ref)
               - name: git_username
                 value: $(body.pull_request.user.login)
               - name: git_commit
@@ -68,6 +70,7 @@
               - name: git_pr_url
               - name: git_fork_url
               - name: git_repo_url
+              - name: git_base_branch
               - name: git_username
               - name: git_commit
               - name: env
@@ -103,6 +106,8 @@
                       value: $(tt.params.git_fork_url)
                     - name: git_repo_url
                       value: $(tt.params.git_repo_url)
+                    - name: git_base_branch
+                      value: $(tt.params.git_base_branch)
                     - name: git_username
                       value: $(tt.params.git_username)
                     - name: env
@@ -145,3 +150,6 @@
                     - name: registry-credentials
                       secret:
                         secretName: hosted-pipeline-registry-auth-secret
+                    - name: ssh-dir
+                      secret:
+                        secretName: github-rh-operator-bundle-bot-ssh-credentials

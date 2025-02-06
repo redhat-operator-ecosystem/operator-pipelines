@@ -1,0 +1,162 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: add-bundle-to-fbc
+spec:
+  description: |
+    A task that automatically adds a bundle to the FBC based on a release config file.
+    The optional step commits the changes to the repository and creates a pull request
+    against the base branch. The new pull request will be handled by the other pipeline
+    that takes care of the FBC release process.
+  params:
+    - name: pipeline_image
+      description: The common pipeline image.
+
+    - name: bundle_pullspec
+      description: Bundle pullspec
+
+    - name: operator_name
+      description: The name of the operator that is going to be released to the FBC
+
+    - name: operator_version
+      description: The version of the operator that is going to be released to the FBC
+
+    - name: create_pull_request
+      description: Whether to create a pull request to the repository with the FBC changes
+      default: "false"
+
+    - name: git_base_branch
+      description: The base branch to create a pull request against
+      default: "main"
+
+    - name: github_origin_pr_url
+      description: |
+        The URL to the PR that triggered the pipeline.
+        The URL is used to create a comment with the link to the PR.
+
+    - name: github_token_secret_name
+      description: The name of the Kubernetes Secret that contains the GitHub token.
+      default: github
+
+    - name: github_token_secret_key
+      description: The key within the Kubernetes Secret that contains the GitHub token.
+      default: token
+
+    - name: userHome
+      description: |
+        Absolute path to the user's home directory. Set this explicitly if you are running the
+        image as a non-root user or have overridden the gitInitImage param with an image
+        containing custom user configuration.
+      type: string
+      default: "/tekton/home"
+
+  workspaces:
+    - name: source
+    - name: ssh-directory
+      optional: true
+
+  steps:
+    - name: add-bundle-to-fcb
+      image: "$(params.pipeline_image)"
+      workingDir: $(workspaces.source.path)
+      script: |
+        #! /usr/bin/env bash
+        set -xe
+
+        RELEASE_CONFIG_PATH="operators/$(params.operator_name)/$(params.operator_version)/release-config.yaml"
+
+        if [[ ! -f $RELEASE_CONFIG_PATH ]]; then
+          echo "Release config do not exist, skipping adding bundle to FBC"
+          exit 0
+        fi
+
+        add-bundle-to-fbc \
+          --repo-path . \
+          --bundle-pullspec "$(params.bundle_pullspec)" \
+          --operator-name "$(params.operator_name)" \
+          --operator-version "$(params.operator_version)"
+
+        cat operators/$(params.operator_name)/catalog-templates/basic.yaml
+        cat operators/$(params.operator_name)/catalog-templates/semver.yaml
+
+        # Loop over all catalogs in /catalogs and run opm validate to ensure the catalogs are valid
+        for catalog in ./catalogs/*; do
+          opm validate $catalog
+        done
+
+    - name: commit-push-and-open-pr
+      image: "$(params.pipeline_image)"
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: HOME
+          value: "$(params.userHome)"
+        - name: WORKSPACE_SSH_DIRECTORY_BOUND
+          value: $(workspaces.ssh-directory.bound)
+        - name: WORKSPACE_SSH_DIRECTORY_PATH
+          value: $(workspaces.ssh-directory.path)
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: $(params.github_token_secret_name)
+              key: $(params.github_token_secret_key)
+      script: |
+        #! /usr/bin/env bash
+        set -xe
+
+        if [[ "$(params.create_pull_request)" != "true" ]]; then
+          echo "Skipping creating a pull request"
+          exit 0
+        fi
+
+        RELEASE_CONFIG_PATH="operators/$(params.operator_name)/$(params.operator_version)/release-config.yaml"
+
+        if [[ ! -f $RELEASE_CONFIG_PATH ]]; then
+          echo "Release config do not exist, skipping adding bundle to FBC"
+          exit 0
+        fi
+
+        if [ "${WORKSPACE_SSH_DIRECTORY_BOUND}" = "true" ] ; then
+          cp -R "${WORKSPACE_SSH_DIRECTORY_PATH}" "${HOME}/.ssh"
+          chmod 700 "${HOME}"/.ssh
+          chmod -R 400 "${HOME}"/.ssh/*
+          eval $(ssh-agent)
+          ssh-add "${HOME}/.ssh/id_rsa"
+        fi
+
+
+        git config --global --add safe.directory $(workspaces.source.path)
+        git config --global user.email "exd-guild-isv+operators@redhat.com"
+        git config --global user.name "rh-operator-bundle-bot"
+
+
+        # Add catalogs and templates changes to a gii and push to a new branch
+        git add operators/$(params.operator_name)/catalog-templates
+        git add catalogs/*
+
+        FBC_UPDATE_BRANCH="add-$(params.operator_name)-$(params.operator_version)-to-fbc-$RANDOM"
+
+        git checkout -b $FBC_UPDATE_BRANCH
+        git commit -m "Add $(params.operator_name) $(params.operator_version) to FBC"
+        git push origin "$FBC_UPDATE_BRANCH"
+
+        cat > pr_comment.md << EOL
+        ### 🚀 Automated PR: FBC Release Process
+
+        This pull request was **automatically generated** as part of the FBC release process.
+
+        - **Operator:** \`$(params.operator_name)\`
+        - **Version:** \`$(params.operator_version)\`
+        - **Image:** \`$(params.bundle_pullspec)\`
+
+        For reference, see the [previous PR]($(params.github_origin_pr_url)).
+
+        If you have any questions or need modifications, please let us know!
+        EOL
+
+        # A new pull request is created with FBC addition
+        gh pr create \
+          --base "$(params.git_base_branch)" \
+          --head $FBC_UPDATE_BRANCH \
+          --title "Auto FBC release $(params.operator_name) $(params.operator_version)" \
+          --body-file pr_comment.md

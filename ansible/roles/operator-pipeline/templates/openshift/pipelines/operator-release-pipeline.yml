@@ -10,6 +10,10 @@ spec:
     - name: git_commit
       description: Git repository HEAD commit
     - name: git_commit_base
+
+    - name: git_base_branch
+      description: The branch where the pull request is merged to
+
     - name: git_pr_url
       description: URL to the pull request
     - name: registry
@@ -108,8 +112,6 @@ spec:
     - name: set-github-status-pending
       taskRef:
         name: set-github-status
-      runAfter:
-        - set-github-started-label
       params:
         - name: pipeline_image
           value: "$(params.pipeline_image)"
@@ -131,6 +133,7 @@ spec:
     # Set environment
     - name: set-env
       runAfter:
+        - set-github-started-label
         - set-github-status-pending
       taskRef:
         name: set-env
@@ -684,6 +687,41 @@ spec:
           workspace: results
           subPath: summary
 
+    - name: add-bundle-to-fbc
+      runAfter:
+        - copy-bundle-image-to-released-registry
+      taskRef:
+        kind: Task
+        name: add-bundle-to-fbc
+      when:
+        - input: "$(tasks.detect-changes.results.added_bundle)"
+          operator: notin
+          values: [""]
+      params:
+        - name: pipeline_image
+          value: "$(params.pipeline_image)"
+        - name: bundle_pullspec
+          value: "$(tasks.copy-bundle-image-to-released-registry.results.image_pullspec)"
+        - name: operator_name
+          value: "$(tasks.detect-changes.results.added_operator)"
+        - name: operator_version
+          value: "$(tasks.detect-changes.results.added_bundle)"
+        - name: git_base_branch
+          value: "$(params.git_base_branch)"
+        - name: github_origin_pr_url
+          value: "$(params.git_pr_url)"
+        - name: github_token_secret_name
+          value: "$(params.github_token_secret_name)"
+        - name: github_token_secret_key
+          value: "$(params.github_token_secret_key)"
+        - name: create_pull_request
+          value: "true"
+      workspaces:
+        - name: source
+          workspace: repository
+          subPath: src
+        - name: ssh-directory
+          workspace: ssh-dir
 
   finally:
 

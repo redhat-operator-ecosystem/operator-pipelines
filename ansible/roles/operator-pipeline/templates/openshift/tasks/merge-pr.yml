@@ -64,7 +64,8 @@ spec:
 
         # To avoid issuing too many GH API requests, fetch all PR info we need
         # in a single call upfront and process the result later
-        gh pr view "$(params.git_pr_url)" --json isDraft,reviews >/tmp/pr.json
+        gh pr view "$(params.git_pr_url)" --json isDraft,reviews,author >/tmp/pr.json
+
 
         # Extract all reviews and return one line per reviewer containing three space separated fields:
         #   $state $authorAssociation $author
@@ -80,8 +81,12 @@ spec:
         jq -r '[.reviews[]|{author:.author.login,authorAssociation,state,submittedAt}]|group_by(.author)|map(sort_by(.submittedAt)|.[-1]|"\(.state) \(.authorAssociation) \(.author)")[]' \
           /tmp/pr.json | tee /tmp/reviews.txt
 
+
+        # Check if a PR author is a member matches a bot name
+        if [[ "$(jq -r '.author.login' /tmp/pr.json)" == "rh-operator-bundle-bot" ]]; then
+            echo "Author of the PR is known bot, merge is allowed"
+        elif ! grep "^APPROVED MEMBER " /tmp/reviews.txt ; then
         # Do not merge if we do not have approval from the bot or any other repo member
-        if ! grep "^APPROVED MEMBER " /tmp/reviews.txt ; then
             echo -n "Skipping merge: PR is not approved." | tee "$(workspaces.output.path)/merge_error.txt"
             echo -n "false" > "$(results.pr_merged.path)"
             exit 0
